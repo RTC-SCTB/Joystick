@@ -7,14 +7,18 @@ J.info()
 time.sleep(2)
 J.start()
 
+
 def hand():
     print("IT'S ALIVE!!!")
+
 
 def hand2():
     print("REALY!!!")
 
+
 def hand3():
-    print("I NOT BELIVE")
+    print("Im NOT BELIVE")
+
 
 J.connectButton('unknown(0x12d)', hand)
 J.connectButton('thumb', hand2)
