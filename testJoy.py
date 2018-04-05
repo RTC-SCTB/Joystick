@@ -20,12 +20,12 @@ def hand3():
     print("Im NOT BELIVE")
 
 
-J.connectButton('unknown(0x12d)', hand)
-J.connectButton('thumb', hand2)
-J.connectButton('trigger', hand3)
+#J.connectButton('unknown(0x12d)', hand)
+J.connectButton('tl', hand2)
+J.connectButton('tr', hand3)
 
 while(True):
-    #print(J.Axis.get('x'))
+    print(J.Axis.get('ry'))
     #print(J.Buttons.get('trigger'))
     time.sleep(0.1)
 J.exit()
