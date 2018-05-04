@@ -1,7 +1,7 @@
 import time
-import RTCjoystick
+import RTCJoystick
 
-J = RTCjoystick.Joystick()
+J = RTCJoystick.Joystick()
 J.connect("/dev/input/js0")
 J.info()
 time.sleep(2)
@@ -21,11 +21,11 @@ def hand3():
 
 
 #J.connectButton('unknown(0x12d)', hand)
-J.connectButton('tl', hand2)
-J.connectButton('tr', hand3)
+J.connectButton('base2', hand2)
+J.connectButton('base3', hand3)
 
-while(True):
-    print(J.Axis.get('ry'))
+while False: #True:
+    #print(J.Axis.get('ry'))
     #print(J.Buttons.get('trigger'))
     time.sleep(0.1)
 J.exit()

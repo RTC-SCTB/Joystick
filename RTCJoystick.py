@@ -123,7 +123,7 @@ class Joystick(threading.Thread):
     def info(self):  # Вывод информации о всех найденных параметрах
         print('Device name', self.jname)
         print('Device path: %s' % self.path)
-        print('%d axes found: %s' % (self.axisNum, ', '.join(self.axisMap)))
+        print('%d axis found: %s' % (self.axisNum, ', '.join(self.axisMap)))
         print('%d buttons found: %s' % (self.buttonsNum, ', '.join(self.buttonMap)))
 
     def connect(self, path):  # Подключается к джойстику по path
@@ -201,10 +201,11 @@ class Joystick(threading.Thread):
     def run(self):  # потоковая ф-ия
         while not self.EXIT:
             self.read()
-        self.jsdev.close()  # закрыть джойстик
 
     def exit(self):  # ф-ия выхода
         self.EXIT = True
+        self.EV.exit()
+        self.jsdev.close()
 
     def getAxis(self):  # возвращает словарь со всеми осями и их значениями
         return self.axisStates

@@ -3,12 +3,12 @@
 ## Import
 Чтобы импортировать данный модуль необходимо в файле программы ввести
 ```
-import RTCjoystick
+import RTCJoystick
 ```
 ## Joystick
 Класс предаставляющий средства и методы для работы с джойстиком 
 ```
-J = RTCjoystick.Joystick()
+J = RTCJoystick.Joystick()
 ```
 ### Методы и свойства
 Подключение к джойстику 
