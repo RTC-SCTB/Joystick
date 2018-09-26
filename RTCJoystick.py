@@ -4,6 +4,7 @@ import struct
 import array
 from fcntl import ioctl
 import threading
+import signal
 import RTCEventMaster
 
 
@@ -106,65 +107,70 @@ buttonNames = {
 class Joystick(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        self.path = None  # Путь к Джойстику
-        self.axisMap = []  # Доступные оси на данном джойстике
-        self.buttonMap = []  # Доступные кнопки на данном Джойстике
-        self.axisStates = {}  # Словарь, хранящий текущие состояния осей
-        self.buttonStates = {}  # Словарь, хранящий текущие состояния кнопок(нажата, отжата)
-        self.jsdev = None  # Файл джойстика(грубо говоря)
-        self.jname = None  # Имя джойстика
-        self.axisNum = 0  # Количество доступных осей
-        self.buttonsNum = 0  # Количество доступных кнопок
-        self.EXIT = False  # Метка выхода из потока
-        self.buttonHandler = {}  # Словарь, хранящий обработчики событий нажатия кнопок
-        self.EV = RTCEventMaster.EventMaster()
-        self.EV.start()
+        self._path = None  # Путь к Джойстику
+        self._axisMap = []  # Доступные оси на данном джойстике
+        self._buttonMap = []  # Доступные кнопки на данном Джойстике
+        self._axisStates = {}  # Словарь, хранящий текущие состояния осей
+        self._buttonStates = {}  # Словарь, хранящий текущие состояния кнопок(нажата, отжата)
+        self._jsdev = None  # Файл джойстика(грубо говоря)
+        self._name = None  # Имя джойстика
+        self._axisNum = 0  # Количество доступных осей
+        self._buttonsNum = 0  # Количество доступных кнопок
+        self._EXIT = False  # Метка выхода из потока
+        self._buttonHandler = {}  # Словарь, хранящий обработчики событий нажатия кнопок
+        self._EV = RTCEventMaster.EventMaster()
+        self._EV.start()
 
     def info(self):  # Вывод информации о всех найденных параметрах
-        print('Device name', self.jname)
-        print('Device path: %s' % self.path)
-        print('%d axis found: %s' % (self.axisNum, ', '.join(self.axisMap)))
-        print('%d buttons found: %s' % (self.buttonsNum, ', '.join(self.buttonMap)))
+        print(self)
+
+    def __repr__(self):
+        return 'Device name: %s' % self._name + "\n" + \
+               'Device path: %s' % self._path + "\n" + \
+               '%d axis found: %s' % (self._axisNum, ', '.join(self._axisMap)) + "\n" + \
+               '%d buttons found: %s' % (self._buttonsNum, ', '.join(self._buttonMap))
 
     def connect(self, path):  # Подключается к джойстику по path
-        self.path = path
+        self._path = path
         buf = b' '  # Временный буфер
         try:
-            self.jsdev = open(path, 'rb')  # Открываем джойстик
+            self._jsdev = open(path, 'rb')  # Открываем джойстик
         except FileNotFoundError:
             raise JoyNotFoundError("Joystick not found")  # Вызов исключения
         else:
             buf = array.array('b', buf * 50)  # Cоздаем массив с 50ю итерируемыми объектами
-            ioctl(self.jsdev, JSIOCGNAME, buf)  # Записываем в buf имя джойстика
-            self.jname = buf.tostring()  # переводим в строку и записываем в jname
+            ioctl(self._jsdev, JSIOCGNAME, buf)  # Записываем в buf имя джойстика
+            self._name = buf.tostring()  # переводим в строку и записываем в jname
 
             buf = array.array('B', [0])  # Создаем массив с 1 итерируемым объектом
-            ioctl(self.jsdev, JSIOCGBUTTONS, buf)  # Записываем в buf количество доступных кнопок
-            self.buttonsNum = buf[0]  # Записываем в buttonNum количество доступных кнопок
+            ioctl(self._jsdev, JSIOCGBUTTONS, buf)  # Записываем в buf количество доступных кнопок
+            self._buttonsNum = buf[0]  # Записываем в buttonNum количество доступных кнопок
 
             buf = array.array('B', [0])  # Создаем массив с 1 итерируемым объектом
-            ioctl(self.jsdev, JSIOCGAXES, buf)  # Записываем в buf количество доступных осей
-            self.axisNum = buf[0]  # Записываем в axisNum количество доступных осей
+            ioctl(self._jsdev, JSIOCGAXES, buf)  # Записываем в buf количество доступных осей
+            self._axisNum = buf[0]  # Записываем в axisNum количество доступных осей
 
             buf = array.array('B', [0] * 40)  # Cоздаем массив с 40ю итерируемыми объектами
-            ioctl(self.jsdev, JSIOCGAXMAP, buf)  # Записываем в buf карту осей
+            ioctl(self._jsdev, JSIOCGAXMAP, buf)  # Записываем в buf карту осей
 
-            for axis in buf[:self.axisNum]:  # По каждой найденной оси
+            for axis in buf[:self._axisNum]:  # По каждой найденной оси
                 axisName = axisNames.get(axis, 'unknown(0x%02x)' % axis)  # Присваиваем имя этой оси
-                self.axisMap.append(axisName)  # Добавить ось в карту
-                self.axisStates[axisName] = 0.0  # Присвоить данной оси начальное значение 0
+                self._axisMap.append(axisName)  # Добавить ось в карту
+                self._axisStates[axisName] = 0.0  # Присвоить данной оси начальное значение 0
 
             buf = array.array('H', [0] * 200)  # Создаем 2х байтовый массив с 200/2 итерируемыми объектами
-            ioctl(self.jsdev, JSIOCGBTNMAP, buf)  # Записываем в buf карту кнопок
+            ioctl(self._jsdev, JSIOCGBTNMAP, buf)  # Записываем в buf карту кнопок
 
-            for btn in buf[:self.buttonsNum]:  # По каждой найденной кнопке
+            for btn in buf[:self._buttonsNum]:  # По каждой найденной кнопке
                 btnName = buttonNames.get(btn, 'unknown(0x%03x)' % btn)  # Присваиваем имя этой кнопке
-                self.buttonMap.append(btnName)  # Добавить кнопку в карту
-                self.buttonStates[btnName] = False  # Присвоить данной кнопке начальное значение False
+                self._buttonMap.append(btnName)  # Добавить кнопку в карту
+                self._buttonStates[btnName] = False  # Присвоить данной кнопке начальное значение False
 
     def read(self):
         try:
-            evbuf = self.jsdev.read(8)  # Прочитать из буфера событий данные
+            evbuf = self._jsdev.read(8)  # Прочитать из буфера событий данные
+        except TimeoutError:
+            pass
         except OSError:
             raise JoyCrashError("Joystick crash")
         except AttributeError:
@@ -177,51 +183,50 @@ class Joystick(threading.Thread):
                     pass
 
                 if type & 0x01:  # если 0x01, то пришедшие данные с кнопки
-                    button = self.buttonMap[number]  # берем кнопку из карты кнопок по принятому номеру
+                    button = self._buttonMap[number]  # берем кнопку из карты кнопок по принятому номеру
                     if button:
-                        if self.buttonStates[button] != value:
+                        if self._buttonStates[button] != value:
                             if value:
                                 # print("Кнопка нажата")
-                                handler = self.buttonHandler.get(
+                                handler = self._buttonHandler.get(
                                     button)  # берем обработчик нажатия кнопки, который мы скинули в список
                                 if handler:  # если он существует
                                     handler.push()  # вызвать его
                             else:
                                 pass
                                 # print("Кнопка отжата")
-                        self.buttonStates[
+                        self._buttonStates[
                             button] = value  # присвоить значению словаря по текущей кнопке принятое значение
 
                 if type & 0x02:  # если на выходе 0x02
-                    axis = self.axisMap[number]  # берем ось из карты кнопок по принятому номеру
+                    axis = self._axisMap[number]  # берем ось из карты кнопок по принятому номеру
                     if axis:
                         fvalue = value / 32767.0  # нормализуем ось
-                        self.axisStates[axis] = fvalue  # присвоить значению словаря по текущей оси принятое значение
+                        self._axisStates[axis] = fvalue  # присвоить значению словаря по текущей оси принятое значение
 
     def run(self):  # потоковая ф-ия
-        while not self.EXIT:
+        while not self._EXIT:
             self.read()
 
     def exit(self):  # ф-ия выхода
-        self.EXIT = True
-        self.EV.exit()
-        self.jsdev.close()
+        self._EXIT = True
+        self._EV.exit()
 
-    def getAxis(self):  # возвращает словарь со всеми осями и их значениями
-        return self.axisStates
+    @property   # свойство, доступ к осям
+    def Axis(self):  # возвращает словарь со всеми осями и их значениями
+        return self._axisStates
 
-    def getButtons(self):  # возвращает словарь со всеми кнопками и их значениями
-        return self.buttonStates
+    @property   # свойство, доступ к кнопкам
+    def Buttons(self):  # возвращает словарь со всеми кнопками и их значениями
+        return self._buttonStates
 
     def connectButton(self, buttonName, handler):  # подключает handler к кнопке с именем buttonName
-        for but in self.buttonMap:  # пробегает по всем доступным кнопкам
+        for but in self._buttonMap:  # пробегает по всем доступным кнопкам
             if but == buttonName:  # если такая кнопка есть
                 ev = RTCEventMaster.EventBlock()  # создать блок события
                 ev.setfun(handler)  # дать ему функцию
-                self.EV.append(ev)  # добавить его в EVENT_MASTER
-                self.buttonHandler.update({but: ev})  # добавить блок в словарь
+                self._EV.append(ev)  # добавить его в EVENT_MASTER
+                self._buttonHandler.update({but: ev})  # добавить блок в словарь
                 return
         raise ButtonError("Такой кнопки нет")  # вызвать исключение
 
-    Axis = property(getAxis)  # свойство, доступ к осям
-    Buttons = property(getButtons)  # свойство, доступ к кнопкам

@@ -9,11 +9,19 @@ class EventBlock:
         self.name = name  # имя события
         self.event = threading.Event()  # событие
         self.foo = fun  # функция события
+        self.__f = None  # дополнительная переменная ф-ия
+        self.args = None
 
     def setfun(self, f):  # установить функцию события
-        self.foo = f
+        self.__f = f
 
-    def push(self):  # вызвать событие
+    def push(self, *args):  # вызвать событие
+        self.args = args
+
+        def f():  # еще одна переменная(ф-ия с пустыми аргументами)
+            self.__f(*args)
+
+        self.foo = f
         self.event.set()
 
 
@@ -34,7 +42,7 @@ class EventMaster(threading.Thread):
                     element.event.clear()  # снять метку события
 
                 if len(self.eventQueue) > 0:  # если очередь не пуста
-                    self.threads.append(threading.Thread(target=self.eventQueue.pop(0).foo))  # добавить в список
+                    self.threads.append(threading.Thread(daemon=True, target=self.eventQueue.pop(0).foo))  # добавить в список
                     #  потоков функцию, принадлежащую первому элементу очереди, при этом удаляя его из очереди
                     self.threads.pop(0).start()  # запустить первый элемент списка потоков, при этом удаляя его
             time.sleep(self.timeSleep)
