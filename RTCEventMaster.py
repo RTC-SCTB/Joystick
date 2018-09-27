@@ -27,7 +27,7 @@ class EventBlock:
 
 class EventMaster(threading.Thread):
     def __init__(self, freq=20):  # конструктор класса EventMaster
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self, daemon=True)
         self.eventList = []  # список возможных событий, с привязанными ф-ями
         self.eventQueue = []  # очередь выполнения функций событий
         self.Exit = False  # метка выхода из потока

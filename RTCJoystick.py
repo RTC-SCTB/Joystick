@@ -4,7 +4,6 @@ import struct
 import array
 from fcntl import ioctl
 import threading
-import signal
 import RTCEventMaster
 
 
@@ -106,7 +105,7 @@ buttonNames = {
 
 class Joystick(threading.Thread):
     def __init__(self):
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self, daemon=True)
         self._path = None  # Путь к Джойстику
         self._axisMap = []  # Доступные оси на данном джойстике
         self._buttonMap = []  # Доступные кнопки на данном Джойстике
@@ -166,7 +165,7 @@ class Joystick(threading.Thread):
                 self._buttonMap.append(btnName)  # Добавить кнопку в карту
                 self._buttonStates[btnName] = False  # Присвоить данной кнопке начальное значение False
 
-    def read(self):
+    def _read(self):
         try:
             evbuf = self._jsdev.read(8)  # Прочитать из буфера событий данные
         except TimeoutError:
@@ -177,12 +176,12 @@ class Joystick(threading.Thread):
             raise InternalError("Joystick not open")
         else:
             if evbuf:
-                time0, value, type, number = struct.unpack('IhBB',
-                                                           evbuf)  # Распаковка прочитанных данных
-                if type & 0x80:  # если на выходе 0x80, джойстик еще инициализируется
+                _, value, stype, number = struct.unpack('IhBB',
+                                                        evbuf)  # Распаковка прочитанных данных
+                if stype & 0x80:  # если на выходе 0x80, джойстик еще инициализируется
                     pass
 
-                if type & 0x01:  # если 0x01, то пришедшие данные с кнопки
+                if stype & 0x01:  # если 0x01, то пришедшие данные с кнопки
                     button = self._buttonMap[number]  # берем кнопку из карты кнопок по принятому номеру
                     if button:
                         if self._buttonStates[button] != value:
@@ -198,25 +197,25 @@ class Joystick(threading.Thread):
                         self._buttonStates[
                             button] = value  # присвоить значению словаря по текущей кнопке принятое значение
 
-                if type & 0x02:  # если на выходе 0x02
+                if stype & 0x02:  # если на выходе 0x02
                     axis = self._axisMap[number]  # берем ось из карты кнопок по принятому номеру
                     if axis:
-                        fvalue = value / 32767.0  # нормализуем ось
-                        self._axisStates[axis] = fvalue  # присвоить значению словаря по текущей оси принятое значение
+                        self._axisStates[axis] = value / 32767.0  # присвоить значению словаря по текущей оси
+                        # принятое значение + нормализуем ось
 
     def run(self):  # потоковая ф-ия
         while not self._EXIT:
-            self.read()
+            self._read()
 
     def exit(self):  # ф-ия выхода
         self._EXIT = True
         self._EV.exit()
 
-    @property   # свойство, доступ к осям
+    @property  # свойство, доступ к осям
     def Axis(self):  # возвращает словарь со всеми осями и их значениями
         return self._axisStates
 
-    @property   # свойство, доступ к кнопкам
+    @property  # свойство, доступ к кнопкам
     def Buttons(self):  # возвращает словарь со всеми кнопками и их значениями
         return self._buttonStates
 
@@ -229,4 +228,3 @@ class Joystick(threading.Thread):
                 self._buttonHandler.update({but: ev})  # добавить блок в словарь
                 return
         raise ButtonError("Такой кнопки нет")  # вызвать исключение
-
