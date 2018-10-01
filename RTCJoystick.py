@@ -185,15 +185,10 @@ class Joystick(threading.Thread):
                     button = self._buttonMap[number]  # берем кнопку из карты кнопок по принятому номеру
                     if button:
                         if self._buttonStates[button] != value:
-                            if value:
-                                # print("Кнопка нажата")
-                                handler = self._buttonHandler.get(
-                                    button)  # берем обработчик нажатия кнопки, который мы скинули в список
-                                if handler:  # если он существует
-                                    handler.push()  # вызвать его
-                            else:
-                                pass
-                                # print("Кнопка отжата")
+                            handler = self._buttonHandler.get(button)  # берем обработчик нажатия кнопки,
+                            #  который мы скинули в список
+                            if handler:  # если он существует
+                                handler.push(value)  # вызвать его с аргументом - нажата или отжата кнопка
                         self._buttonStates[
                             button] = value  # присвоить значению словаря по текущей кнопке принятое значение
 
