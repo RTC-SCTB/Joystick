@@ -52,7 +52,7 @@ J.onButtonClick('thumb', hand)
 J.exit()
 ```
 ### Исключения
-* JoyCrashError - крашнулся джойстик
+* JoyCrashError - ошибка связанная с работой джойстика: джойстик был отключен, сломан и т.п.
 * JoyNotFoundError - такого джойстика нет
 * InternalError - внутренняя ошибка
 * ButtonError - ошибка связанная с обработкой кнопок   
