@@ -241,4 +241,3 @@ class Joystick(threading.Thread):
         event = eventmaster.Event(str(buttonName) + "ButtonClick")     # создаем событие
         event.connect(handler)  # привязать обработчик события к событию
         self._eventMaster.append(event)     # добавить событие в обработчик событий
-
