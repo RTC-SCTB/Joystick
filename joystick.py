@@ -133,7 +133,7 @@ class Joystick(threading.Thread):
                '%d axis found: %s' % (len(self._axisStates), ', '.join(self._axisStates.keys())) + "\n" + \
                '%d buttons found: %s' % (len(self._buttonStates), ', '.join(self._buttonStates.keys()))
 
-    def connect(self, path):
+    def open(self, path):
         """ Подключается к джойстику по path """
         self._path = path
         buf = b' '  # Временный буфер
@@ -160,7 +160,8 @@ class Joystick(threading.Thread):
             for axis in buf[:axisNum]:  # По каждой найденной оси
                 axisName = _axisNames.get(axis, 'unknown(0x%02x)' % axis)  # Присваиваем имя этой оси
                 self.__axisMap.append(axisName)
-                self._axisStates[axisName] = 0.0  # Присвоить данной оси начальное значение 0
+                self._axisStates[axisName] = 0.0
+                # обработчиков
 
             buf = array.array('H', [0] * 200)  # Создаем 2х байтовый массив с 200/2 итерируемыми объектами
             ioctl(self._jsdev, _JSIOCGBTNMAP, buf)  # Записываем в buf карту кнопок
@@ -168,7 +169,7 @@ class Joystick(threading.Thread):
             for btn in buf[:buttonsNum]:  # По каждой найденной кнопке
                 btnName = _buttonNames.get(btn, 'unknown(0x%03x)' % btn)  # Присваиваем имя этой кнопке
                 self.__buttonMap.append(btnName)
-                self._buttonStates[btnName] = False  # Присвоить данной кнопке начальное значение False
+                self._buttonStates[btnName] = False
 
     def _read(self):
         """ ф-ия чтения данных с джойстика """
@@ -190,19 +191,27 @@ class Joystick(threading.Thread):
                 if stype & 0x01:  # если 0x01, то пришедшие данные с кнопки
                     button = self.__buttonMap[number]  # берем кнопку из карты кнопок по принятому номеру
                     if button:
-                        if self._buttonStates[button] != value:
-                            event = self._eventMaster.getEventByName(button + "ButtonClick")
-                            # берем событие, который мы скинули в список
-                            if event:  # если он существует
-                                event.push(value)  # вызвать его с аргументом - нажата или отжата кнопка
-                        self._buttonStates[
-                            button] = value  # присвоить значению словаря по текущей кнопке принятое значение
+                        self._buttonStateChange(button, value)
+                        self._buttonStates[button] = value  # присвоить значению словаря по
+                        # текущей кнопке принятое значение
 
                 if stype & 0x02:  # если на выходе 0x02
                     axis = self.__axisMap[number]  # берем ось из карты кнопок по принятому номеру
                     if axis:
+                        self._axisStateChange(axis, value)
                         self._axisStates[axis] = value / 32767.0  # присвоить значению словаря по текущей оси
                         # принятое значение + нормализуем ось
+
+    def _buttonStateChange(self, name, value):
+        """ ф-ия, которая вызывается, когда изменяется состояние какой-либо кнопки """
+        if self._buttonStates[name] != value:
+            event = self._eventMaster.getEventByName(str(name) + "ButtonClick")
+            if event:
+                event.push(value)
+
+    def _axisStateChange(self, name, value):
+        """ ф-ия, которая вызывается, когда изменяется состояние оси """
+        pass
 
     def run(self):
         """ потоковая ф-ия """
@@ -215,17 +224,17 @@ class Joystick(threading.Thread):
         self._eventMaster.exit()
 
     @property
-    def Axis(self):
+    def axis(self):
         """ свойство, доступ к осям: возвращает словарь со всеми осями и их значениями """
         return self._axisStates
 
     @property
-    def Buttons(self):
+    def buttons(self):
         """ свойство, доступ к кнопкам: возвращает словарь со всеми кнопками и их значениями """
         return self._buttonStates
 
-    def connectButton(self, buttonName, handler):
-        """ подключение handler'a к кнопке с именем buttonName """
+    def onButtonClick(self, buttonName, handler):
+        """ подключение handler-обработчика события к событию Click, к кнопке с именем buttonName  """
         button = self._buttonStates.get(buttonName)
         if button is None:
             raise ButtonError("Такой кнопки нет")  # вызвать исключение
