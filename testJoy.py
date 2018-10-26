@@ -3,6 +3,7 @@
 import time
 import RTCJoystick
 
+
 J = RTCJoystick.Joystick()
 J.connect("/dev/input/js0")
 print(J)
